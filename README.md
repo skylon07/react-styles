@@ -44,7 +44,7 @@ If you would like to disable this feature, you can run `ReactStyles.disableAutoC
 
 
 ### Async setState()
-React's `setState()` function is very famous. However, one of the key things that bothered me is it is not asyncronous! If you like to use ES6 `async/await` syntax, then lucky for you React Styles provides a `setState()` patch which returns an awaitable `Promise`! All you need to do is run `ReactStyles.useAsyncSetState()` at the beginning of your program, and you are good to go! (You can still use the second `callback` argument, in case other code already depends on it).
+React's `setState()` function is very famous. However, one of the key things that bothered me is it is not asyncronous! If you like to use ES6 `async/await` syntax, then lucky for you React Styles provides a `setState()` patch which returns an awaitable `Promise`! All you need to do is run `ReactStyles.useAsyncSetState()` at the beginning of your program, and you are good to go! (You can still use the second `callback` argument, in case other code already depends on it). This will also change the `forceUpdate()` function in a like manner.
     
 
 ## makeStyle() Syntax
