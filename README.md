@@ -6,18 +6,18 @@ React Styles creates its own set of components that only add onto the original R
 
 ### Table of Contents
 - [Main Features](#main-features)
-	- [makeStyle()](#makeStyle%28%29)
-	- [Custom prop: hidden](#custom-prop%3A-hidden)
-	- [Automatic className='...' handling](#automatic-classname%3D%27...%27-handling)
-	- [Async setState()](#async-setstate%28%29)
-- [makeStyle() Syntax](#makestyle%28%29-syntax)
-	- [Case: return](#case%3A-return)
-	- [Case: static properties](#case%3A-static-properties)
-	- [Case: dynamic properties](#case%3A-dynamic-properties)
-	- [Case: children](#case%3A-children)
-	- [Case: "when()" callback](#case%3A-"when%28%29"-callback)
-	- [Case: animations](#case:-animations)
-	- [Case: absolute properties](#case%3A-absolute-properties)
+	- [makeStyle()](#makeStyle)
+	- [Custom prop: hidden](#custom-prop-hidden)
+	- [Automatic className='...' handling](#automatic-classname-handling)
+	- [Async setState()](#async-setstate)
+- [makeStyle() Syntax](#makestyle-syntax)
+	- [Case: return](#case-return)
+	- [Case: static properties](#case-static-properties)
+	- [Case: dynamic properties](#case-dynamic-properties)
+	- [Case: children](#case-children)
+	- [Case: "when()" callback](#case-when-callback)
+	- [Case: animations](#case-animations)
+	- [Case: absolute properties](#case-absolute-properties)
 - [Themes and Presets](#themes-and-presets)
 
 
@@ -26,7 +26,7 @@ React Styles provides its own component to work with. Don't worry, you won't nee
 
 
 ### makeStyle()
-The `makeStyle()` function is the bread-and-butter of React Styles. Everything ultimately hinges on this dynamic, and it is the main way to style your components (maybe other than using themes). This function will be explained in-depth in [this section](#makestyle%28%29-syntax).
+The `makeStyle()` function is the bread-and-butter of React Styles. Everything ultimately hinges on this dynamic, and it is the main way to style your components (maybe other than using themes). This function will be explained in-depth in [this section](#makestyle-syntax).
 
 
 ### Custom prop: hidden
