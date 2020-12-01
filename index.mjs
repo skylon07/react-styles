@@ -1,5 +1,7 @@
 import React from 'react'
 
+import unnamedComponentHandler from './unnamedComponents.mjs'
+
 // just an alias that allows auto-naming of an error...
 class CustomError extends Error {
     constructor(message) {
@@ -8,18 +10,287 @@ class CustomError extends Error {
     }
 }
 
-/* COMPONENT DEFINITION */
-// some errors...
 
-// main mixin
+/* PUBLIC INTERFACE FUNCTIONS */
+function disableAutoClassNaming() {
+    autoClassNamingEnabled = false
+}
+
+// NOTE: the global variable CANNOT be disabled permanently;
+// that feature is only intended for incompatible components
+function disableHiddenProps() {
+    hiddenPropEnabledGlobally = false
+}
+function enableHiddenProp() {
+    hiddenPropEnabledGlobally = true
+}
+
+function useAsyncSetState() {
+    asyncSetStateEnabled = true
+    asyncForceUpdateEnabled = true
+}
+
+// given the associated unnamed component number, this returns the original constructor
+function getUnnamedComponentConstructor(id) {
+    const name = unnamedComponentHandler.prefix + id
+    return unnamedComponentHandler.getConstructor(name)
+}
+
+// given an html element, this will rerun whatever animation
+// that applies to a specific class name (or class names)
+function rerunAnimationOn(htmlElement, classNames) {
+    if (!Array.isArray(classNames)) {
+        classNames = [classNames]
+    }
+
+    htmlElement.classList.remove(...classNames)
+    void htmlElement.offsetWidth // a little trick i learned on the interwebs a while ago...
+    htmlElement.classList.add(...classNames)
+}
+
+
+/* LIBRARY PRIVATE VARIABLES */
+let autoClassNamingEnabled = true
+let hiddenPropEnabledGlobally = true
+
+// used to access React Styles properties in components (or JSX representations)
+const RSKey = Symbol()
+
+let asyncSetStateEnabled = false
+let asyncForceUpdateEnabled = false
+
+
+/* COMPONENT DEFINITION */
+// some error definitions it will use...
+class HiddenPropDisabledError extends CustomError {
+    constructor(enableOrDisable) {
+        super(`Cannot ${enableOrDisable} hidden prop because React Styles has already globally disabled it`)
+        this.request = enableOrDisable
+    }
+}
+
+// main mixin to add React Styles features to any base component class "ReactClass"
 function MyComponentFrom(ReactClass) {
     return class extends ReactClass {
+        constructor(props) {
+            super(props)
 
+            // initializes a secret object for any React Styles implemented properties
+            this[RSKey] = {
+                // React Styles uses this as the root for CSS rules it generates
+                componentName: this.constructor.name || unnamedComponentHandler.generateName(this.constructor),
+                hiddenPropEnabled: true, // 'false' means disabled; 'null' means permanently disabled
+
+                // references to originally defined lifecycle functions (to be wrapped later)
+                // NOTE: .call() will need to be used on these since they are in a container object
+                originalRender: this.render,
+                originalComponentDidMount: this.componentDidMount,
+                originalComponentDidUpdate: this.componentDidUpdate,
+                originalSetState: this.setState,
+                originalForceUpdate: this.forceUpdate,
+            }
+
+            _bindLifecycleWrappersFor(this)
+        }
+
+        // returns a unique name that identifies the CSS class
+        get componentName() {
+            return this[RSKey].componentName
+        }
+
+        /* ENABLE/DISABLE FEATURES */
+        disableHiddenProp() {
+            if (this[RSKey].hiddenPropEnabled === null) {
+                throw new HiddenPropDisabledError("disable")
+            }
+            this[RSKey].hiddenPropEnabled = false
+        }
+
+        enableHiddenProp() {
+            if (this[RSKey].hiddenPropEnabled === null) {
+                throw new HiddenPropDisabledError("enable")
+            }
+            this[RSKey].hiddenPropEnabled = true
+        }
     }
 }
 
 
+/* COMPONENT HELPER FUNCTIONS */
+function _bindLifecycleWrappersFor(componentInstance) {
+    _bindRender(componentInstance)
+    _bindComponentDidMount(componentInstance)
+    _bindComponentDidUpdate(componentInstance)
 
+    if (asyncSetStateEnabled) {
+        _bindSetState(componentInstance)
+    }
+    if (asyncForceUpdateEnabled) {
+        _bindForceUpdate(componentInstance)
+    }
+}
+
+// used for auto className handling and updating hidden prop
+function _bindRender(component) {
+    const origRender = component[RSKey].originalRender
+    // (for all bind functions) only wrap defined functions
+    if (typeof origRender === "function") {
+        component.render = () => {
+            const fullResult = origRender.call(component)
+            if (!fullResult || typeof fullResult !== "object") {
+                // no further processing needed
+                return fullResult
+            }
+            
+            // define some secret properties...
+            // NOTE: props must be used so the component instance can detect this
+            fullResult.props[RSKey] = {
+                parentClassName: "", // used to chain className handling if render() returned a component
+            }
+
+            // disables hidden prop on structures that cant support it
+            // NOTE: arrays do not have props.style attributes; this breaks hidden prop
+            if (Array.isArray(fullResult)) {
+                if (component[RSKey].hiddenPropEnabled && console && console.warn) {
+                    const name = component.componentName
+                    console.warn(`Arrays returned from render() cannot use "hidden" prop. This feature will be disabled in component <${name} />. (To mute this message, disable hidden prop in component constructor.)`)
+                }
+                component[RSKey].hiddenPropEnabled = null // disables permanently
+            }
+            // NOTE: fragments do not have corresponding DOM elements; this breaks hidden prop
+            else if (fullResult.type === React.Fragment) {
+                if (component[RSKey].hiddenPropEnabled && console && console.warn) {
+                    const name = component.componentName
+                    console.warn(`React.Fragments returned from render() cannot use "hidden" prop. This feature will be disabled in component <${name} />. (To mute this message, disable hidden prop in component constructor.)`)
+                }
+                component[RSKey].hiddenPropEnabled = null // disables permanently
+            }
+
+            const isElement = typeof fullResult.type === "string"
+            const isComponent = typeof fullResult.type === "function"
+            // apply className to elements if not given
+            if (isElement) {
+                if (autoClassNamingEnabled) {
+                    if (!fullResult.props.className) {
+                        fullResult.props.className = component.componentName
+                    }
+                }
+                
+                // grabs class name sent from parent (which happens if parent render() returned this directly)
+                // NOTE: this is what does the actual "chaining" for component class names
+                const parentClassName = component.props[RSKey].parentClassName
+                if (parentClassName) {
+                    fullResult.props.className += ' ' + parentClassName
+                }
+            }
+            // tell the child component instance (through props) to apply this className
+            else if (isComponent) {
+                fullResult.props[RSKey].parentClassName = component.componentName
+                // chain other classNames if this was rendered directly by parent too
+                const parentClassName = component.props[RSKey].parentClassName
+                if (parentClassName) {
+                    fullResult.props[RSKey].className += ' ' + parentClassName
+                }
+            }
+            
+            _handleHiddenProp(component, fullResult)
+            return fullResult
+        }
+    }
+}
+
+// used to initialize makeStyle() properties
+function _bindComponentDidMount(component) {
+    const origMount = component[RSKey].originalComponentDidMount
+    if (typeof origMount === "function") {
+        component.componentDidMount = () => {
+            // TODO (dont forget to use .call!)
+        }
+    }
+}
+
+// used to update dynamic makeStyle() properties
+function _bindComponentDidUpdate(component) {
+    const origUpdate = component[RSKey].originalComponentDidUpdate
+    if (typeof origUpdate === "function") {
+        component.componentDidUpdate = () => {
+            // TODO (dont forget .call!)
+        }
+    }
+}
+
+// provides async/await functionality for setState()
+function _bindSetState(component) {
+    const origSetState = component[RSKey].originalSetState
+    if (typeof origSetState === "function") {
+        // TODO
+    }
+}
+
+// provides async/await functionality for forceUpdate()
+function _bindForceUpdate(component) {
+    const origForceUpdate = component[RSKey].originalForceUpdate
+    if (typeof origForceUpdate === "function") {
+        // TODO
+    }
+}
+
+function _handleHiddenProp(component, renderResult) {
+    // check if hidden prop is enabled globally and for the component type
+    if (!hiddenPropEnabledGlobally || !component[RSKey].hiddenPropEnabled) {
+        return    
+    }
+
+    // get the correct JSX child hiding (determined by checking class name)
+    const childHiding = _getChildJSXWithClass(component.componentName, renderResult)
+    if (!childHiding) {
+        return
+    }
+
+    // ensure props.style is an editable object
+    if (typeof childHiding.props.style !== "object" || childHiding.props.style === null) {
+        childHiding.props.style = {}
+    }
+
+    // update display prop according to hidden prop
+    if (component.props.hidden) {
+        childHiding.props.style.display = "none"
+    }
+}
+
+function _getChildJSXWithClass(className, jsxElementOrArray) {
+    let children = jsxElementOrArray // will be an array if not already
+    if (!Array.isArray(children)) {
+        // ensures element is an actual JSX object that can hold a className
+        const jsxElement = jsxElementOrArray
+        if (!jsxElement || typeof jsxElement !== "object") {
+            return null
+        }
+        
+        // main className test
+        const elemClassName = jsxElement.props.className
+        if (typeof elemClassName === "string" && elemClassName.split(' ').includes(className)) {
+            return jsxElement
+        }
+        else {
+            children = jsxElement.props.children
+            if (!Array.isArray(children)) {
+                children = [children]
+            }
+        }
+    }
+
+    // recursively check children classNames
+    for (let i = 0; i < children.length; i++) {
+        const childElem = children[i]
+        const nextElem = _getChildJSXWithClass(className, childElem)
+        if (nextElem) {
+            // found it!
+            return nextElem
+        }
+    }
+    return null // never found anything in children either...
+}
 
 
 // TODO: remove this nasty...
@@ -66,8 +337,7 @@ class ReactStyles {
                 }
                 this.__ReactStyles_bindWrapperFuncs();
             }
-            
-            // TODO: required implementation
+
             get componentName() {
                 return this.__ReactStyles_componentName;
             }
@@ -87,21 +357,17 @@ class ReactStyles {
                 };
             }
 
-            // TODO: required implementation (split into public:disable and private:disablePermanently)
             disableHiddenProp(permanent = false) {
                 this.__ReactStyles_shouldHandleHiddenProp = false;
                 if (permanent) {
                     this.__ReactStyles_cannotEnableHiddenProp = true;
                 }
             }
-            // TODO: required implementation
             enableHiddenProp() {
                 if (!this.__ReactStyles_cannotEnableHiddenProp) {
                     this.__ReactStyles_shouldHandleHiddenProp = true;
                 }
             }
-
-            // TODO: add ability to disable className='' handling
 
             __ReactStyles_checkProp(prop, checkType, shouldBe) {
                 const className = this.componentName;
@@ -238,7 +504,6 @@ class ReactStyles {
             }
 
             // instance bindings
-            // TODO: required implementation
             __ReactStyles_bindWrapperFuncs() {
                 this.__ReactStyles_bindRender();
                 this.__ReactStyles_bindMakeStyle();
@@ -249,7 +514,6 @@ class ReactStyles {
                 this.__ReactStyles_bindForceUpdate();
             }
 
-            // TODO: required implementation
             __ReactStyles_bindRender() {
                 this.__ReactStyles_origRender = this.render;
                 this.render = () => {
@@ -259,14 +523,11 @@ class ReactStyles {
 
                     // these are the same, unless fullResult is an array (see below)
                     let fullResult;
-                    // TODO: remove try/catch (both) from implementation
                     try {
-                        // TODO: remove from implementation
                         this.__ReactStyles_checkProps(); // checked here because shouldComponentUpdate() is not always run (first render, forceUpdate(), etc)
-                        
+
                         fullResult = this.__ReactStyles_origRender();
 
-                        // TODO: remove from implementation 
                         if (typeof fullResult !== "object") {
                             throw new Error(`Component <${this.componentName} />.render() must return a React/JSX representation of a DOM element`);
                         }
@@ -285,7 +546,6 @@ class ReactStyles {
                         );
                     }
 
-                    // TODO: required implementation
                     // disables ref-based props for arrays and fragments
                     if (Array.isArray(fullResult)) {
                         if (this.__ReactStyles_shouldHandleHiddenProp) {
@@ -298,7 +558,6 @@ class ReactStyles {
                             }
                         }
                     }
-                    // TODO: required implementation
                     else if (fullResult.type === React.Fragment) {
                         if (this.__ReactStyles_shouldHandleHiddenProp) {
                             this.disableHiddenProp(true);
@@ -310,8 +569,7 @@ class ReactStyles {
                             }
                         }
                     }
-                    
-                    // TODO: required implementation (also document this is determining class names in case rendering another component)
+
                     // represents html element
                     if (typeof fullResult.type === "string") {
                         if (!fullResult.props.className) {
@@ -324,19 +582,18 @@ class ReactStyles {
                     }
                     // represents class component
                     else {
-                            // tells future render to include this class (since it "is" this component, style-wise)
-                            fullResult.props.__ReactStyles_parentClassName = this.componentName;
-                            if (this.props.__ReactStyles_parentClassName) {
-                                fullResult.props.__ReactStyles_parentClassName += ' ' + this.props.__ReactStyles_parentClassName;
-                            }
+                        // tells future render to include this class (since it "is" this component, style-wise)
+                        fullResult.props.__ReactStyles_parentClassName = this.componentName;
+                        if (this.props.__ReactStyles_parentClassName) {
+                            fullResult.props.__ReactStyles_parentClassName += ' ' + this.props.__ReactStyles_parentClassName;
                         }
-
+                    }
+                    
                     this.__ReactStyles_handleHiddenProp(fullResult);
                     return fullResult;
                 };
             }
-            
-            // TODO: required implementation
+
             __ReactStyles_bindMakeStyle() {
                 this.__ReactStyles_origMakeStyle = this.makeStyle;
                 this.makeStyle = when => {
@@ -362,7 +619,6 @@ class ReactStyles {
                 };
             }
 
-            // TODO: required implementation
             __ReactStyles_bindComponentDidMount() {
                 this.__ReactStyles_origComponentDidMount = this.componentDidMount;
                 this.componentDidMount = () => {
@@ -401,12 +657,11 @@ class ReactStyles {
                             return false; // dont update on errors
                         }
                     } else {
-                            return true; // no checking provided!
-                        }
+                        return true; // no checking provided!
+                    }
                 };
             }
 
-            // TODO: required implementation
             __ReactStyles_bindComponentDidUpdate() {
                 this.__ReactStyles_origComponentDidUpdate = this.componentDidUpdate;
                 this.componentDidUpdate = () => {
@@ -431,7 +686,6 @@ class ReactStyles {
             //  - if there are errors (and a console), it will warn on the console
             //  - it is both awaitable and allows a callback as a second argument
 
-            // TODO: required implementation (make it optional; enable first)
             __ReactStyles_bindSetState() {
                 this.__ReactStyles_origSetState = this.setState;
                 this.setState = (newState = {}, callback = null) => {
@@ -473,7 +727,6 @@ class ReactStyles {
                 }
             }
 
-            // TODO: make this optional (alongside setState())
             __ReactStyles_bindForceUpdate() {
                 this.__ReactStyles_origForceUpdate = this.forceUpdate;
                 this.forceUpdate = (callback = null) => {
@@ -504,6 +757,7 @@ class ReactStyles {
             }
 
             /* CSS STYLE IMPLEMENTATION */
+            // TODO: required implementation
             __ReactStyles_initStyle() {
                 const style = this.makeStyle(ReactStyles._makeStyleWhen);
                 if (ReactStyles._shouldRenderStyle(this.componentName)) {
@@ -526,13 +780,13 @@ class ReactStyles {
 
                 // compiles the dynamic styles, but without all the baggy strings (optimization)
                 else {
-                        if (style) {
-                            const isJSXElement = style.type;
-                            if (!isJSXElement) {
-                                this.__ReactStyles_parseStyle(style, "dynamicOnly");
-                            }
+                    if (style) {
+                        const isJSXElement = style.type;
+                        if (!isJSXElement) {
+                            this.__ReactStyles_parseStyle(style, "dynamicOnly");
                         }
                     }
+                }
             }
 
             __ReactStyles_parseStyle(style, mode = "normalMode") {
@@ -540,12 +794,14 @@ class ReactStyles {
             }
 
             // checks if dynamic styles need to be updated, and if so, renders whats needed
+            // TODO: required implementation
             __ReactStyles_updateDynamicStyles() {
                 ReactStyles._renderDynamicStyles(this.__ReactStyles_dynamicStyles, this);
                 if (typeof this.componentDidUpdateStyle === "function") {
                     this.componentDidUpdateStyle();
                 }
             }
+            // TODO: required implementation
             forceUpdateStyles() {
                 this.__ReactStyles_updateDynamicStyles();
             }
@@ -793,68 +1049,68 @@ class ReactStyles {
 
             // if it is a child class...
             else if (typeof value === "object") {
-                    // special: @keyframes
-                    if (prop[0] === '@') {
-                        if (mode === "dynamicOnly") {
-                            this._parseKeyFrames(mode, prop, value, dynStyleStack);
-                        } else {
-                            childClassStr += this._parseKeyFrames(mode, prop, value, dynStyleStack);
-                        }
+                // special: @keyframes
+                if (prop[0] === '@') {
+                    if (mode === "dynamicOnly") {
+                        this._parseKeyFrames(mode, prop, value, dynStyleStack);
+                    } else {
+                        childClassStr += this._parseKeyFrames(mode, prop, value, dynStyleStack);
                     }
-
-                    // special: raw line definition
-                    else if (prop[0] === '=') {
-                            if (mode === "dynamicOnly") {
-                                this._parseStyleAs(mode, prop.slice(1), value, dynStyleStack, themeClassName);
-                            } else {
-                                childClassStr += this._parseStyleAs(mode, prop.slice(1), value, dynStyleStack, themeClassName);
-                            }
-                        }
-
-                        // regular subclass
-                        else {
-                                let childSep = ' ';
-                                // if first character is a capital letter, its a subclass name (allows using things like button and *)
-                                const code = prop.charCodeAt(0);
-                                if (code >= 65 && code <= 90) {
-                                    childSep += '.';
-                                }
-
-                                const childClassLine = classLine + childSep + prop;
-                                if (mode === "dynamicOnly") {
-                                    this._parseStyleAs(mode, childClassLine, value, dynStyleStack, themeClassName);
-                                } else {
-                                    childClassStr += this._parseStyleAs(mode, childClassLine, value, dynStyleStack, themeClassName);
-                                }
-                            }
                 }
 
-                // if it is a dynamic/updatable property...
-                else if (typeof value === "function") {
-                        if (mode === "themeMode") {
-                            const getValue = ref => {
-                                // for themes, callbacks should only be called on the correct components
-                                if (ref.constructor.name === themeClassName) {
-                                    return value(ref);
-                                } else {
-                                    return this._themeSkipped;
-                                }
-                            };
+                // special: raw line definition
+                else if (prop[0] === '=') {
+                    if (mode === "dynamicOnly") {
+                        this._parseStyleAs(mode, prop.slice(1), value, dynStyleStack, themeClassName);
+                    } else {
+                        childClassStr += this._parseStyleAs(mode, prop.slice(1), value, dynStyleStack, themeClassName);
+                    }
+                }
 
-                            // keeps track of dynamic theme styles to delete when a new theme is selected
-                            dynStyleStack.push({ classLine, prop, getValue });
-                        } else {
-                            dynStyleStack.push({ classLine, prop, getValue: value });
-                        }
+                // regular subclass
+                else {
+                    let childSep = ' ';
+                    // if first character is a capital letter, its a subclass name (allows using things like button and *)
+                    const code = prop.charCodeAt(0);
+                    if (code >= 65 && code <= 90) {
+                        childSep += '.';
                     }
 
-                    // if it is a regular css property
-                    else {
-                            if (mode !== "dynamicOnly") {
-                                const propName = this._parseCSSPropName(prop);
-                                styleContent += `${propName}: ${value};n`;
-                            }
+                    const childClassLine = classLine + childSep + prop;
+                    if (mode === "dynamicOnly") {
+                        this._parseStyleAs(mode, childClassLine, value, dynStyleStack, themeClassName);
+                    } else {
+                        childClassStr += this._parseStyleAs(mode, childClassLine, value, dynStyleStack, themeClassName);
+                    }
+                }
+            }
+
+            // if it is a dynamic/updatable property...
+            else if (typeof value === "function") {
+                if (mode === "themeMode") {
+                    const getValue = ref => {
+                        // for themes, callbacks should only be called on the correct components
+                        if (ref.constructor.name === themeClassName) {
+                            return value(ref);
+                        } else {
+                            return this._themeSkipped;
                         }
+                    };
+
+                    // keeps track of dynamic theme styles to delete when a new theme is selected
+                    dynStyleStack.push({ classLine, prop, getValue });
+                } else {
+                    dynStyleStack.push({ classLine, prop, getValue: value });
+                }
+            }
+
+            // if it is a regular css property
+            else {
+                if (mode !== "dynamicOnly") {
+                    const propName = this._parseCSSPropName(prop);
+                    styleContent += `${propName}: ${value};n`;
+                }
+            }
         }
 
         if (mode === "dynamicOnly") {
@@ -862,10 +1118,10 @@ class ReactStyles {
         }
         // increases specificity to override component makeStyle() statements
         else if (mode === "themeMode") {
-                return `html:not(.__THIS_INCREASES_SPECIFICITY__) ${classLine} {n${styleContent}}n${subClassStr}${childClassStr}`;
-            } else {
-                return `${classLine} {n${styleContent}}n${subClassStr}${childClassStr}`;
-            }
+            return `html:not(.__THIS_INCREASES_SPECIFICITY__) ${classLine} {n${styleContent}}n${subClassStr}${childClassStr}`;
+        } else {
+            return `${classLine} {n${styleContent}}n${subClassStr}${childClassStr}`;
+        }
     }
 
     // changes "backgroundColor" to "background-color"
