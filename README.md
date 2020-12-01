@@ -11,7 +11,7 @@ React Styles creates its own set of components that only add onto the original R
 	- [Automatic className='...' handling](#automatic-classname-handling)
 	- [Async setState()](#async-setstate)
 - [makeStyle() Syntax](#makestyle-syntax)
-	- [Case: return](#case-return)
+	- [Case: function body](#case-function-body)
 	- [Case: static properties](#case-static-properties)
 	- [Case: dynamic properties](#case-dynamic-properties)
 	- [Case: children](#case-children)
@@ -51,7 +51,7 @@ React's `setState()` function is very famous. However, one of the key things tha
 This section explains the syntax of using `makeStyle()`. This function is called on the first render of the component. It returns a single object representing the style layout of a component. An example might look like this:
 ```
 makeStyle(when) {
-    // case: return
+    // case: function body
     return {
         // case: static properties
         color: "white",
@@ -107,13 +107,13 @@ makeStyle(when) {
 Whew, that was a lot! Let's break this down a bit...
 
 
-### Case: return
+### Case: function body
 ```
 return {
     // ...
 }
 ```
-`makeStyle()` is expected to return a regular JS object, representing a layout of how to style the component. This will eventually be converted to plain CSS.
+`makeStyle()` is only expected to return a regular JS object, representing a layout of how to style the component. This will eventually be converted to plain CSS.
 
 All of these examples will assume the name of the component is "ComponentName".
 
