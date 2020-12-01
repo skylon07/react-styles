@@ -2,7 +2,7 @@
 # React Styles
 React Styles is an add-on styling library that helps manage component styles in a CSS-like (and React-like) fashion. It also implements a theming/preset tool to help with managing app themes.
 
-React Styles creates it's own set of components that only add onto the original React component functionality. Turning any component into a React Styles component is as easy as extending a different class, if you are already using ES6 class syntax.
+React Styles creates it's own set of components that only add onto the original React component functionality. Turning any component into a React Styles component is as easy as extending a different class, if you are already using ES6 class syntax. **You must have React imported and working for this library to work.**
 
 
 ## makeStyle() syntax
