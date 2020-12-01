@@ -45,63 +45,63 @@ If you would like to disable this feature, you can run `ReactStyles.disableAutoC
 
 ### Async setState()
 React's `setState()` function is very famous. However, one of the key things that bothered me is it is not asyncronous! If you like to use ES6 `async/await` syntax, then lucky for you React Styles provides a `setState()` patch which returns an awaitable `Promise`! All you need to do is run `ReactStyles.useAsyncSetState()` at the beginning of your program, and you are good to go! (You can still use the second `callback` argument, in case other code already depends on it).
-	
+  
 
 ## makeStyle() Syntax
 This section explains the syntax of using `makeStyle()`. This function is called on the first render of the component. It returns a single object representing the style layout of a component. An example might look like this:
 ```
 makeStyle(when) {
-	// case: return
-	return {
-		// case: static properties
-		color: "white",
-		backgroundColor: "blue",
-		"background-color": "blue",
-		
-		// case: dynamic properties
-		color: (ref) => {
-			return "red"
-		},
-		
-		// case: children
-		ChildComponent: {
-			// ...
-		},
-		button: {
-			// ...
-		},
-		">button": {
-			// ...
-		},
-		
-		// case: "when()" callback
-		[when("Square")]: { // notice [...]
-			[when(":active")]: {
-				// ...
-			},
-		},
-		[when(":active")]: {
-			// ...
-		},
-		
-		// case: animations
-		"@keyframes ComponentName-AnimationNameHere": {
-			from: {
-				// ...
-			},
-			50: {
-				// ...
-			},
-			"60%": {
-				// ...
-			},
-		},
-		
-		// case: absolute properties
-		"=.Component-Container": {
-			// ...
-		},
-	}
+  // case: return
+  return {
+    // case: static properties
+    color: "white",
+    backgroundColor: "blue",
+    "background-color": "blue",
+    
+    // case: dynamic properties
+    color: (ref) => {
+      return "red"
+    },
+    
+    // case: children
+    ChildComponent: {
+      // ...
+    },
+    button: {
+      // ...
+    },
+    ">button": {
+      // ...
+    },
+    
+    // case: "when()" callback
+    [when("Square")]: { // notice [...]
+      [when(":active")]: {
+        // ...
+      },
+    },
+    [when(":active")]: {
+      // ...
+    },
+    
+    // case: animations
+    "@keyframes ComponentName-AnimationNameHere": {
+      from: {
+        // ...
+      },
+      50: {
+        // ...
+      },
+      "60%": {
+        // ...
+      },
+    },
+    
+    // case: absolute properties
+    "=.Component-Container": {
+      // ...
+    },
+  }
 }
 ```
 Whew, that was a lot! Let's break this down a bit...
@@ -110,7 +110,7 @@ Whew, that was a lot! Let's break this down a bit...
 ### Case: return
 ```
 return {
-	// ...
+  // ...
 }
 ```
 `makeStyle()` is expected to return a regular JS object, representing a layout of how to style the component. This will eventually be converted to plain CSS.
@@ -129,8 +129,8 @@ CSS properties are defined by string values. The example above shows defining th
 These properties will compile to a CSS definition like so:
 ```
 .ComponentName {
-	color: white;
-	background-color: blue;
+  color: white;
+  background-color: blue;
 }
 ```
 
@@ -138,7 +138,7 @@ These properties will compile to a CSS definition like so:
 ### Case: dynamic properties
 ```
 color: (ref) => {
-	return "red"
+  return "red"
 },
 ```
 Dynamic properties are a little interesting... They probably don't work quite how one would expect. They are defined by a function value, and run on these basic rules:
@@ -150,10 +150,10 @@ The `ref` value that is passed to the function is equivelant to `this` (when usi
 To conceptualize this in CSS terms, imagine a "dynamic property" as a "`var()` variable", which is updated after any component updates. The example above works similarly to these CSS rules:
 ```
 :root {
-	--component-color: "red",
+  --component-color: "red",
 }
 .ComponentName {
-	color: var(--component-color);
+  color: var(--component-color);
 }
 ```
 
@@ -165,15 +165,15 @@ Usage of dynamic properties is uncommon, since technically it is legacy function
 ### Case: children
 ```
 ChildComponent: {
-	// ...
+  // ...
 },
 div: {
-	h1: {
-		// ...
-	},
+  h1: {
+    // ...
+  },
 },
 ">button": {
-	// ...
+  // ...
 },
 ```
 If you have ever used [less](http://lesscss.org/) before, this should look somewhat familiar to you. Children styles are defined with object values. Names starting with a capital letter represent children components, while names starting with a lowercase letter represent HTML elements. This is inspired by the way Babel handles JSX syntax; it is the difference between `<div />` and `<Component />`.
@@ -181,16 +181,16 @@ If you have ever used [less](http://lesscss.org/) before, this should look somew
 Any nested child properties (shown by the div ---> h1 example) are parsed identically like and recursively with the main `makeStyle()` object. All of these example properties will be compiled to these CSS rules:
 ```
 .ComponentName .ChildComponent {
-	/* component children properties */
+  /* component children properties */
 }
 .ComponentName div {
-	/* div children properties */
+  /* div children properties */
 }
 .ComponentName div h1 {
-	/* h1 children properties */
+  /* h1 children properties */
 }
 .ComponentName >button {
-	/* immediate button children properties */
+  /* immediate button children properties */
 }
 ```
 
@@ -200,12 +200,12 @@ Note that due to [CSS specificity rules](https://www.w3schools.com/css/css_speci
 ### Case: "when()" callback
 ```
 [when("Square")]: { // notice [...]
-	[when(":active")]: {
-		// ...
-	}
+  [when(":active")]: {
+    // ...
+  }
 },
 [when(":active")]: {
-	// ...
+  // ...
 },
 ```
 The `when()` callback is used to describe what styles a component should use "when" in a certain state. This can include anything from custom CSS classes to pseudo-classes; basically anything you want immediately after `.ComponentName`.
@@ -215,20 +215,20 @@ An important syntax to notice is the `[square brackets]` around the call to `whe
 The examples above will produce the following CSS:
 ```
 .ComponentName.Square {
-	/* square properties */
+  /* square properties */
 }
 .ComponentName.Square:active {
-	/* active square properties */
+  /* active square properties */
 }
 .ComponentName:active {
-	/* active component properties */
+  /* active component properties */
 }
 ```
 
 One last tip regarding this function. You may wish to have many subclasses of a component acting together in CSS. It is permitted to chain these all inside a single `when()` call. For example, this is a completely valid use of `when()` (including the leading '.'):
 ```
 [when(".Square.selected.__something_very_special__:active")]: {
-	// ...
+  // ...
 }
 ```
 
@@ -236,15 +236,15 @@ One last tip regarding this function. You may wish to have many subclasses of a 
 ### Case: animations
 ```
 "@keyframes ComponentName-AnimationNameHere": {
-	from: {
-		// ...
-	},
-	50: {
-		// ...
-	},
-	"60%": {
-		// ...
-	},
+  from: {
+    // ...
+  },
+  50: {
+    // ...
+  },
+  "60%": {
+    // ...
+  },
 },
 ```
 React Styles supports defining animation keyframes, although it is not as nicely implemented as other features. Anything starting with `@keyframes` is treated as a *global* CSS animation rule, regardless of where it is inside `makeStyle()`. For this reason, it is recommended that animation names start with the name of the component, to keep them unique throughout the project. (Any ideas for alternative implementations are welcome! Just [create a new "enhancement" issue](https://github.com/skylon07/react-styles/issues/new) on GitHub.)
@@ -255,7 +255,7 @@ One thing to note is that this object is specially handled, and only supports th
 ### Case: absolute properties
 ```
 "=.Component-Container": {
-	// ...
+  // ...
 },
 ```
 **Use these sparingly!** Odds are, if you need to use an absolute property, then something in your styling (or maybe even component structure) is wrong. There are a few exceptions to this rule, mostly including:
@@ -265,13 +265,13 @@ One thing to note is that this object is specially handled, and only supports th
 If you determine that an absolute property is necessary, then here is what's going on. When the first character of a property name is '=', then React Styles treats it as an absolute property. This means that, regardless of the placement of its definition, it will render the rest of the property name as the class of the CSS rule. In the example above, this would generate...
 ```
 .Component-Container {
-	/* container properties */
+  /* container properties */
 }
 ```
 ...and NOT...
 ```
 .ComponentName .Component-Container {
-	/* container properties */
+  /* container properties */
 }
 ```
 
