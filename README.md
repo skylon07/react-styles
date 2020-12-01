@@ -44,7 +44,9 @@ If you would like to disable this feature, you can run `ReactStyles.disableAutoC
 
 
 ### Async setState()
-React's `setState()` function is very famous. However, one of the key things that bothered me is it is not asyncronous! If you like to use ES6 `async/await` syntax, then lucky for you React Styles provides a `setState()` patch which returns an awaitable `Promise`! All you need to do is run `ReactStyles.useAsyncSetState()` at the beginning of your program, and you are good to go! (You can still use the second `callback` argument, in case other code already depends on it).
+React's `setState()` function is very common throughout components. However, one of the key things that bothered me is it is not asyncronous! If you like to use ES6 `async/await` syntax, then lucky for you React Styles provides a `setState()` patch which returns an awaitable `Promise`! All you need to do is run `ReactStyles.useAsyncSetState()` at the beginning of your program, and you are good to go! (You can still use the second `callback` argument, in case other code already depends on it).
+
+Running `useAsyncSetState()` will also change the `forceUpdate()` function in a like manner.
     
 
 ## makeStyle() Syntax
@@ -160,6 +162,8 @@ To conceptualize this in CSS terms, imagine a "dynamic property" as a "`var()` v
 The actual implementation of a dynamic property does not work this way, since changing CSS variables is slow and inefficient. Instead, each component will be given a dedicated style rule for all properties (if any) that are dynamic.
 
 Usage of dynamic properties is uncommon, since technically it is legacy functionality. The main purpose of their existance was to help React Styles maintain multiple themes, however this is not how themes are managed anymore.
+
+One last tip: You can call `.forceUpdateStyles()` on a component instance to, well, force update any dynamic styles you have defined. However if using dynamic styles in the first place is rare, then you likely will never have to touch this function.
 
 
 ### Case: children
