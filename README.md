@@ -163,6 +163,8 @@ The actual implementation of a dynamic property does not work this way, since ch
 
 Usage of dynamic properties is uncommon, since technically it is legacy functionality. The main purpose of their existance was to help React Styles maintain multiple themes, however this is not how themes are managed anymore.
 
+One last tip: You can call `.forceUpdateStyles()` on a component instance to, well, force update any dynamic styles you have defined. However if using dynamic styles in the first place is rare, then you likely will never have to touch this function.
+
 
 ### Case: children
 ```
