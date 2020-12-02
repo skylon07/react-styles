@@ -1,6 +1,7 @@
 import React from 'react'
 
 import unnamedComponentHandler from './unnamedComponents.mjs'
+import makeStyleManagerFactory from './makeStyleManager.mjs'
 
 // just an alias that allows auto-naming of an error...
 class CustomError extends Error {
@@ -55,6 +56,7 @@ let hiddenPropEnabledGlobally = true
 
 // used to access React Styles properties in components (or JSX representations)
 const RSKey = Symbol()
+makeStyleManagerFactory.setRSKey(RSKey)
 
 let asyncSetStateEnabled = false
 let asyncForceUpdateEnabled = false
@@ -88,6 +90,9 @@ function MyComponentFrom(ReactClass) {
                 originalComponentDidUpdate: this.componentDidUpdate,
                 originalSetState: this.setState,
                 originalForceUpdate: this.forceUpdate,
+
+                // makeStyle manager for this instance
+                styleManager: makeStyleManagerFactory.createManagerFor(this),
             }
 
             _bindLifecycleWrappersFor(this)
@@ -111,6 +116,10 @@ function MyComponentFrom(ReactClass) {
                 throw new HiddenPropDisabledError("enable")
             }
             this[RSKey].hiddenPropEnabled = true
+        }
+
+        forceUpdateStyles() {
+            this[RSKey].styleManager.updateDynamicStyles()
         }
     }
 }
@@ -204,7 +213,10 @@ function _bindComponentDidMount(component) {
     const origMount = component[RSKey].originalComponentDidMount
     if (typeof origMount === "function") {
         component.componentDidMount = () => {
-            // TODO (dont forget to use .call!)
+            const styleManager = component[RSKey].styleManager
+            styleManager.initStyle() // before calling mount because static props should not rely on results from mount
+            origMount.call(component)
+            styleManager.updateDynamicStyles()
         }
     }
 }
@@ -214,7 +226,8 @@ function _bindComponentDidUpdate(component) {
     const origUpdate = component[RSKey].originalComponentDidUpdate
     if (typeof origUpdate === "function") {
         component.componentDidUpdate = () => {
-            // TODO (dont forget .call!)
+            origUpdate.call(component)
+            component[RSKey].styleManager.updateDynamicStyles()
         }
     }
 }
@@ -623,7 +636,7 @@ class ReactStyles {
                 this.__ReactStyles_origComponentDidMount = this.componentDidMount;
                 this.componentDidMount = () => {
                     // initialized here so this.state could exist for makeStyle() use
-                    this.__ReactStyles_initStyle(); // TODO: required implementation
+                    this.__ReactStyles_initStyle(); 
 
                     if (typeof this.__ReactStyles_origComponentDidMount === "function") {
                         try {
@@ -677,7 +690,7 @@ class ReactStyles {
                             }
                         }
                     }
-                    this.__ReactStyles_updateDynamicStyles(); // TODO: required implementation
+                    this.__ReactStyles_updateDynamicStyles();
                 };
             }
 
@@ -801,7 +814,6 @@ class ReactStyles {
                     this.componentDidUpdateStyle();
                 }
             }
-            // TODO: required implementation
             forceUpdateStyles() {
                 this.__ReactStyles_updateDynamicStyles();
             }
