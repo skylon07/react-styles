@@ -43,7 +43,7 @@ export default new class {
         this._unnamedComponentConstructors = {}
         this._unnamedCount = 0
 
-        this.prefix = "Unnamed" // provided publicly for convenience
+        this.prefix = "UnnamedComponent" // provided publicly for convenience
     }
 
     // REQ 1: fulfills requirement 1
