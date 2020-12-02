@@ -46,7 +46,7 @@ export default new class {
         this.prefix = "Unnamed" // provided publicly for convenience
     }
 
-    // satisfies module requirement 1
+    // REQ 1: fulfills requirement 1
     generateName(constructor) {
         const name = this.prefix + this._unnamedCount++
         this._unnamedComponentNames[constructor] = name
@@ -54,12 +54,12 @@ export default new class {
         return name
     }
 
-    // satisfies module requirement 2
+    // REQ 2: fulfills requirement 2
     getName(constructor) {
         return this._unnamedComponentNames[constructor]
     }
 
-    // satisfies module requirement 3
+    // REQ 3: fulfills requirement 3
     getConstructor(name) {
         return this._unnamedComponentConstructors[name]
     }

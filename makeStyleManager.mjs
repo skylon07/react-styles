@@ -14,12 +14,41 @@ accomplishes these tasks under the following requirements:
         7. Manages adding/modifying style elements to/in previous HTML structures
 */
 
-// REQUIRED NAMES (factory):
-// setRSKey(key)
-// createManagerFor(componentInstance)
-// REQUIRED NAMES (style manager):
-// initStyle()
-// updateDynamicStyles()
-
 // should be defined by importing module!
 let RSKey
+
+class StyleManager {
+    constructor(component) {
+        // REQ 7: fulfills requirement 7
+        // TODO: create style elements
+    }
+
+    // REQ 5: fulfills requirement 5
+    initStyle() {
+        // TODO: load makeStyle() ONLY ONCE!
+    }
+
+    // REQ 6: fulfills requirement 6
+    updateDynamicStyles() {
+        // TODO
+    }
+}
+
+// REQ 1: fulfills requirement 1
+// factory singleton
+export default new class {
+    constructor() {
+        // REQ 4: fulfills requirement 4
+        // TODO: create HTML elements as style containers
+    }
+
+    // REQ 3: fulfills requirement 3
+    setRSKey(key) {
+        RSKey = key
+    }
+
+    // REQ 2: fulfills requirement 2
+    createManagerFor(componentInstance) {
+        return new StyleManager(componentInstance)
+    }
+}
