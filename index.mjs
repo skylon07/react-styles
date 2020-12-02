@@ -150,7 +150,7 @@ function _bindRender(component) {
                 // no further processing needed
                 return fullResult
             }
-            
+
             // define some secret properties...
             // NOTE: props must be used so the component instance can detect this
             fullResult.props[RSKey] = {
@@ -184,7 +184,7 @@ function _bindRender(component) {
                         fullResult.props.className = component.componentName
                     }
                 }
-                
+
                 // grabs class name sent from parent (which happens if parent render() returned this directly)
                 // NOTE: this is what does the actual "chaining" for component class names
                 const parentClassName = component.props[RSKey].parentClassName
@@ -201,7 +201,7 @@ function _bindRender(component) {
                     fullResult.props[RSKey].className += ' ' + parentClassName
                 }
             }
-            
+
             _handleHiddenProp(component, fullResult)
             return fullResult
         }
@@ -236,7 +236,25 @@ function _bindComponentDidUpdate(component) {
 function _bindSetState(component) {
     const origSetState = component[RSKey].originalSetState
     if (typeof origSetState === "function") {
-        // TODO
+        component.setState = (newState, callback = null) => {
+            // NOTE: not the best way to do this... but this leaves it as syncronous as possible
+            // (avoids promise rejecting for errors and lets React handle it normally/syncronously)
+            let promiseResolve
+            const promise = new Promise((resolve) => {
+                promiseResolve = resolve
+            })
+
+            // intentionally outside Promise
+            origSetState.call(component, newState, () => {
+                if (typeof callback === "function") {
+                    callback()
+                }
+                promiseResolve(component.state)
+            })
+
+            // make it awaitable!
+            return promise
+        }
     }
 }
 
@@ -244,14 +262,31 @@ function _bindSetState(component) {
 function _bindForceUpdate(component) {
     const origForceUpdate = component[RSKey].originalForceUpdate
     if (typeof origForceUpdate === "function") {
-        // TODO
+        component.forceUpdate = (callback = null) => {
+            // NOTE: doing the same thing as setState() wrapper...
+            let promiseResolve
+            const promise = new Promise((resolve) => {
+                promiseResolve = resolve
+            })
+
+            // intentionally outside Promise
+            origForceUpdate.call(component, () => {
+                if (typeof callback === "function") {
+                    callback()
+                }
+                promiseResolve()
+            })
+
+            // make it awaitable!
+            return promise
+        }
     }
 }
 
 function _handleHiddenProp(component, renderResult) {
     // check if hidden prop is enabled globally and for the component type
     if (!hiddenPropEnabledGlobally || !component[RSKey].hiddenPropEnabled) {
-        return    
+        return
     }
 
     // get the correct JSX child hiding (determined by checking class name)
@@ -279,7 +314,7 @@ function _getChildJSXWithClass(className, jsxElementOrArray) {
         if (!jsxElement || typeof jsxElement !== "object") {
             return null
         }
-        
+
         // main className test
         const elemClassName = jsxElement.props.className
         if (typeof elemClassName === "string" && elemClassName.split(' ').includes(className)) {
@@ -601,7 +636,7 @@ class ReactStyles {
                             fullResult.props.__ReactStyles_parentClassName += ' ' + this.props.__ReactStyles_parentClassName;
                         }
                     }
-                    
+
                     this.__ReactStyles_handleHiddenProp(fullResult);
                     return fullResult;
                 };
