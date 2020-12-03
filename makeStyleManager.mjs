@@ -10,7 +10,7 @@ accomplishes these tasks under the following requirements:
     Style Manager:
         4. Parses makeStyle() results after first component mounts
         5. Parses/updates dynamic style properties after every component mounts/updates
-        6. Manages adding/modifying style elements to/in previous HTML structures
+        6. Manages adding/modifying style elements to/in previously mentioned HTML structures
     makeStyle() Syntax:
         7. Static props have string values
         8. Dynamic props have function values
