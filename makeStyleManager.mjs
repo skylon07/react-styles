@@ -24,8 +24,6 @@ accomplishes these tasks under the following requirements:
             - Numerical values automatically converted to percentages
 */
 
-import { memo } from "react"
-
 // should be defined by the importing module!
 let RSKey
 
@@ -187,7 +185,7 @@ class StyleManager {
         // begin parsing
         const initRule = this._baseRule
         parser.parseStyle(initRule, makeResult, onProp)
-        
+
         // remember dynamic rules
         this._dynamicRules = dynamicRules
     }
