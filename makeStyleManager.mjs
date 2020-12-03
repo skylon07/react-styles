@@ -5,7 +5,7 @@ accomplishes these tasks under the following requirements:
 
     Main Factory:
         1. Default export of the module
-        2. Creates managers for component instances
+        2. Creates managers for component instances and themes
         3. Given access to React Styles secrets key ("RSKey")
         4. Sets up HTML element structures for modifying CSS later
     Style Manager:
@@ -291,12 +291,19 @@ export default new class {
     }
 
     // REQ 2: fulfills requirement 2
-    createManagerFor(componentInstance) {
-        const name = componentInstance.componentName // NOTE: needs to be unique accross all CSS declarations
-        const makeStyle = (when) => componentInstance.makeStyle(when)
+    createComponentManager(componentInstance) {
+        const rule = '.' + componentInstance.componentName // manager expects a valid CSS rule
+        const makeStyle = (when) => componentInstance.makeStyle(when) // binds "this" to component
+        return this._createManager(rule, makeStyle)
+    }
+    createThemeManagerForComponent(componentName, makeTheme) {
+        const rule = "body " + componentName + ":not(.__THIS_INCREASES_SPECIFICITY_FOR_THEMES__)"
+        return this._createManager(rule, makeTheme)
+    }
+    _createManager(rule, makeStyle) {
         const createStatic = () => this._createStaticStylesheet()
         const createDynamic = () => this._createDynamicStylesheet()
-        return new StyleManager(name, makeStyle, createStatic, createDynamic)
+        return new StyleManager(rule, makeStyle, createStatic, createDynamic)
     }
 
     /* STYLESHEET MANAGEMENT */
