@@ -130,8 +130,8 @@ class StyleManager {
 }
 
 // NOTE: this is a visitor-based makeStyle() parsing singleton,
-// which allows one to abstract away from recursively scanning
-// objects and just need to provide what to do for each prop
+// which allows one to abstract away from recursively scanning objects
+// and just need to provide what to do given certain parameters
 const parser = new class {
     // NOTE: this function expects classLine to be a VALID CSS RULE NAME
     parseStyle(classLine, makeResult, onProp) {
@@ -141,15 +141,15 @@ const parser = new class {
 
         for (const prop in makeResult) {
             const value = makeResult[prop]
-
+            
             // REQ 12: fulfills requirement 12
             if (this._isWhenProp(prop, value)) {
                 const origProp = prop.slice(whenKey.length)
                 let subClassLine = classLine
                 // checks for letters and automatically adds '.' in front of them
-                const code = origProp.charCodeAt(0);
+                const code = origProp.charCodeAt(0)
                 if (code >= 65 && code <= 90 || code >= 97 && code <= 122) {
-                    subClassLine += '.';
+                    subClassLine += '.'
                 }
                 subClassLine += origProp
 
@@ -215,7 +215,6 @@ const parser = new class {
                 }
             }
         }
-        // TODO
     }
 
     _toCSSProp(name) {
@@ -261,7 +260,7 @@ const parser = new class {
 
     // returns if "str" represents a component name (according to JSX specifications)
     _isComponentName(str) {
-        const code = str.charCodeAt(0);
+        const code = str.charCodeAt(0)
         return code >= 65 && code <= 90 // range of capital letters
     }
 
