@@ -57,28 +57,30 @@ class StyleManager {
     }
 
     // NOTE: as a memory optimization, this manager controls if it needs to create a static/dynamic sheet
-    // NOTE: this constructor setup allows the manager to work with themes and components
-    constructor(cssName, makeStyle, createStaticSheet, createDynamicSheet) {
-        this._cssName = cssName
+    // NOTE: baseRule acts as an ID; it should be unique across all manager instance, and a valid CSS rule
+    constructor(baseRule, makeStyle, createStaticSheet, createDynamicSheet) {
+        this._baseRule = baseRule
         this._makeStyle = makeStyle
 
         // binds create funcs to our associated "memory"
         this._createStaticSheet = () => {
             const style = createStaticSheet()
-            StyleManager._setStaticSheetFor(this._cssName, style)
+            StyleManager._setStaticSheetFor(this._baseRule, style)
             return style
         }
         this._createDynamicSheet = () => {
             const style = createDynamicSheet()
-            StyleManager._setDynamicSheetFor(this._cssName, style)
+            StyleManager._setDynamicSheetFor(this._baseRule, style)
             return style
         }
+
+        this._dynamicRules = null // will have all dynamic CSS rules after initStyle() is run (if any)
     }
 
 
     // REQ 5: fulfills requirement 5
     initStyle() {
-        // NOTE: makeStyle() is run on every component, not just first instance;
+        // NOTE: makeStyle() is run on every component instance, not just first;
         // this keeps "this" (and other) references in dynamic property functions intact
         const when = (param) => + whenKey + param
         const makeResult = this._makeStyle(when)
@@ -91,49 +93,134 @@ class StyleManager {
         }
         // ties in dynamic updater when necessary (but shouldnt update any style elements)
         else {
-            this._laterInitStyle(memory, makeResult)
+            this._laterInitStyle(makeResult, memory)
         }
     }
 
     // REQ 6: fulfills requirement 6
-    updateDynamicStyles() {
+    updateDynamicStyles(componentInstance) {
         const memory = this._getMemory()
         if (!memory.dynamicStyle) {
             return // no dynamic properties to update
         }
 
-        // TODO
+        this._insertRulesToSheet(componentInstance, this._dynamicRules, memory.dynamicStyle)
     }
 
     _getMemory() {
-        return StyleManager[this._cssName]
+        return StyleManager[this._baseRule]
     }
 
     // NOTE: new style elements should ONLY be called in the function below
     _firstInitStyle(makeResult) {
-        const memory = StyleManager._rememberStyle(this._cssName, makeResult)
+        // remember the result for future component mounts
+        StyleManager._rememberStyle(this._baseRule, makeResult)
 
+        // set up some accumulators for each CSS rule line
+        // NOTE: these nested objects are structured as follows: rules.classLine.prop = value
+        const staticRules = {}
+        const dynamicRules = {}
+
+        // set up instructions on what to do for static/dynamic props
         const onProp = {
-            dynamic: 1,
-            static: 1,
+            static: (classLine, prop, value) => {
+                let ruleProps = staticRules[classLine]
+                if (!ruleProps) {
+                    ruleProps = staticRules[classLine] = {}
+                }
+                ruleProps[prop] = value
+            },
+            dynamic: (classLine, prop, value) => {
+                let ruleProps = dynamicRules[classLine]
+                if (!ruleProps) {
+                    ruleProps = dynamicRules[classLine] = {}
+                }
+                ruleProps[prop] = value
+            },
         }
-        parser.parseStyle('.' + this._cssName, makeResult, {})
-        // TODO: parse results (full)
+
+        // begin parsing
+        const initRule = this._baseRule
+        parser.parseStyle(initRule, makeResult, onProp)
+
+        // after accumulating, create ONLY necessary style elements
+        // insert to static stylesheet
+        let anyStaticRules = false
+        for (let _ in staticRules) {
+            anyStaticRules = true
+            break
+        }
+        if (anyStaticRules) {
+            const styleSheet = this._createStaticSheet()
+            // component ref not needed for static properties; no functions
+            this._insertRulesToSheet(null, staticRules, styleSheet)
+        }
+
+        // do not insert to dynamic stylesheet (that is what updateDynamicStyles() does)
+        let anyDynamicRules = false
+        for (let _ in dynamicRules) {
+            anyDynamicRules = true
+            break
+        }
+        if (anyDynamicRules) {
+            this._createDynamicSheet()
+            this._dynamicRules = dynamicRules
+        }
     }
-    _laterInitStyle(memory, makeResult) {
+    _laterInitStyle(makeResult, memory) {
         if (!memory.dynamicStyle) {
             return // no dynamic properties to process (because firstInit didnt see any)
         }
 
-        // TODO: parse results (only dynamic)
+        // acumulate dynamic rules only
+        const dynamicRules = {}
+        const onProp = {
+            dynamic: (classLine, prop, value) => {
+                let ruleProps = dynamicRules[classLine]
+                if (!ruleProps) {
+                    ruleProps = dynamicRules[classLine] = {}
+                }
+                ruleProps[prop] = value
+            },
+        }
+
+        // begin parsing
+        const initRule = this._baseRule
+        parser.parseStyle(initRule, makeResult, onProp)
+        
+        // remember dynamic rules
+        this._dynamicRules = dynamicRules
+    }
+
+    // NOTE: this can process both static and dynamic rules since the logic
+    // after getting the value is the same
+    _insertRulesToSheet(componentInstance, ruleSet, styleElement) {
+        // parse all rules into a single string
+        let htmlStr = ''
+        for (const ruleLine in ruleSet) {
+            htmlStr += ruleLine + '{\n'
+            const props = ruleSet[ruleLine]
+            for (const prop in props) {
+                let value = props[prop]
+                if (typeof value === "function") {
+                    value = value(componentInstance)
+                }
+                htmlStr += prop + ':' + value + ';\n'
+            }
+            htmlStr += '}\n'
+        }
+
+        // set style element with string
+        styleElement.innerHTML = htmlStr
     }
 }
 
 // NOTE: this is a visitor-based makeStyle() parsing singleton,
-// which allows one to abstract away from recursively scanning objects
-// and just need to provide what to do given certain parameters
+// which allows one to abstract thinking to "makeResults in,
+// CSS pieces out"
 const parser = new class {
     // NOTE: this function expects classLine to be a VALID CSS RULE NAME
+    // NOTE: onProp has two functions: "static", and "dynamic" (for their respective types of props)
     parseStyle(classLine, makeResult, onProp) {
         if (typeof makeResult !== "object") {
             return // pretty CSS-like way to do it, right?
@@ -141,7 +228,7 @@ const parser = new class {
 
         for (const prop in makeResult) {
             const value = makeResult[prop]
-            
+
             // REQ 12: fulfills requirement 12
             if (this._isWhenProp(prop, value)) {
                 const origProp = prop.slice(whenKey.length)
@@ -206,7 +293,7 @@ const parser = new class {
 
             for (const prop in timeProps) {
                 const value = timeProps[prop]
-                
+
                 if (this._isDynamicProp(prop, value)) {
                     this._on(onProp, "dynamic", keyTime, prop, value)
                 }

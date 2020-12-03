@@ -92,13 +92,13 @@ function MyComponentFrom(ReactClass) {
                 originalForceUpdate: this.forceUpdate,
 
                 // makeStyle manager for this instance
-                styleManager: makeStyleManagerFactory.createManagerFor(this),
+                styleManager: makeStyleManagerFactory.createComponentManager(this),
             }
 
             _bindLifecycleWrappersFor(this)
         }
 
-        // returns a unique name that identifies the CSS class
+        // returns a unique name that identifies the base for CSS classes
         get componentName() {
             return this[RSKey].componentName
         }
