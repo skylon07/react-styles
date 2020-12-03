@@ -56,7 +56,6 @@ let hiddenPropEnabledGlobally = true
 
 // used to access React Styles properties in components (or JSX representations)
 const RSKey = Symbol()
-makeStyleManagerFactory.setRSKey(RSKey)
 
 let asyncSetStateEnabled = false
 let asyncForceUpdateEnabled = false
