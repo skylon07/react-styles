@@ -671,7 +671,7 @@ class ReactStyles {
                 this.__ReactStyles_origComponentDidMount = this.componentDidMount;
                 this.componentDidMount = () => {
                     // initialized here so this.state could exist for makeStyle() use
-                    this.__ReactStyles_initStyle(); 
+                    this.__ReactStyles_initStyle();
 
                     if (typeof this.__ReactStyles_origComponentDidMount === "function") {
                         try {
@@ -805,7 +805,6 @@ class ReactStyles {
             }
 
             /* CSS STYLE IMPLEMENTATION */
-            // TODO: required implementation
             __ReactStyles_initStyle() {
                 const style = this.makeStyle(ReactStyles._makeStyleWhen);
                 if (ReactStyles._shouldRenderStyle(this.componentName)) {
@@ -842,7 +841,6 @@ class ReactStyles {
             }
 
             // checks if dynamic styles need to be updated, and if so, renders whats needed
-            // TODO: required implementation
             __ReactStyles_updateDynamicStyles() {
                 ReactStyles._renderDynamicStyles(this.__ReactStyles_dynamicStyles, this);
                 if (typeof this.componentDidUpdateStyle === "function") {
