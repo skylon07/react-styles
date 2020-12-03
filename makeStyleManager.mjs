@@ -102,7 +102,7 @@ class StyleManager {
     }
 
     _getMemory() {
-        return StyleManager[this._baseRule]
+        return StyleManager._knownStyles[this._baseRule]
     }
 
     // NOTE: new style elements should ONLY be called in the function below
