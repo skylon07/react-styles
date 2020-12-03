@@ -35,18 +35,18 @@ class StyleManager {
         return this.__knownStyles
     }
 
-    static _rememberStyle(cssName, makeResult) {
+    static _rememberStyle(baseRule, makeResult) {
         // NOTE: treat this as an immutable object
         const newMemory = { makeResult, staticStyle: null, dynamicStyle: null }
-        this._knownStyles[cssName] = newMemory
+        this._knownStyles[baseRule] = newMemory
         return newMemory
     }
-    static _setStaticSheetFor(cssName, styleElement) {
-        const memory = this._knownStyles[cssName]
+    static _setStaticSheetFor(baseRule, styleElement) {
+        const memory = this._knownStyles[baseRule]
         memory.staticStyle = styleElement
     }
-    static _setDynamicSheetFor(cssName, styleElement) {
-        const memory = this._knownStyles[cssName]
+    static _setDynamicSheetFor(baseRule, styleElement) {
+        const memory = this._knownStyles[baseRule]
         memory.dynamicStyle = styleElement
     }
 
