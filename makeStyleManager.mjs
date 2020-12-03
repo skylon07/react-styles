@@ -10,8 +10,19 @@ accomplishes these tasks under the following requirements:
         4. Sets up HTML element structures for modifying CSS later
     Style Manager:
         5. Parses makeStyle() results after first component mounts
-        6. Updates dynamic style properties after every component mounts/updates
+        6. Parses/updates dynamic style properties after every component mounts/updates
         7. Manages adding/modifying style elements to/in previous HTML structures
+    makeStyle() Syntax:
+        8. Static props have string values
+            - camelCase turns to dash-case
+        9. Dynamic props have function values
+            - camelCase turns to dash-case
+        10. Absolute props start with '='
+        11. [when('...')] generates subclass
+        12. Component name or HTML element name creates child class
+            - '.' is auto-appended for Component names ONLY!
+        13. '@keyframes ...' defines animation frames
+            - Numerical values automatically converted to percentages
 */
 
 import { memo } from "react"
@@ -102,6 +113,12 @@ class StyleManager {
     // NOTE: new style elements should ONLY be called in the function below
     _firstInitStyle(makeResult) {
         const memory = StyleManager._rememberStyle(this._cssName, makeResult)
+
+        const onProp = {
+            dynamic: 1,
+            static: 1,
+        }
+        parser.parseStyle('.' + this._cssName, makeResult, {})
         // TODO: parse results (full)
     }
     _laterInitStyle(memory, makeResult) {
@@ -110,6 +127,135 @@ class StyleManager {
         }
 
         // TODO: parse results (only dynamic)
+    }
+}
+
+// NOTE: this is a visitor-based makeStyle() parsing singleton,
+// which allows one to abstract away from recursively scanning
+// objects and just need to provide what to do for each prop
+const parser = new class {
+    // NOTE: this function expects classLine to be a VALID CSS RULE NAME
+    parseStyle(classLine, makeResult, onProp) {
+        if (typeof makeResult !== "object") {
+            return // pretty CSS-like way to do it, right?
+        }
+
+        for (const prop in makeResult) {
+            const value = makeResult[prop]
+
+            // REQ 11: fulfills requirement 11
+            if (this._isWhenProp(prop, value)) {
+                const origProp = prop.slice(whenKey.length)
+                let subClassLine = classLine
+                // checks for letters and automatically adds '.' in front of them
+                const code = origProp.charCodeAt(0);
+                if (code >= 65 && code <= 90 || code >= 97 && code <= 122) {
+                    subClassLine += '.';
+                }
+                subClassLine += origProp
+
+                this.parseStyle(subClassLine, value, onProp)
+            }
+
+            else if (this._isChildProp(prop, value)) {
+                // REQ 13: fulfills requirement 13
+                if (this._isKeyframesProp(prop, value)) {
+                    this._on(onProp, "keyframes", classLine, prop, value)
+                }
+
+                // REQ 10: fulfills requirement 10
+                else if (this._isAbsoluteProp(prop, value)) {
+                    const absClassLine = prop.slice(1)
+                    this.parseStyle(absClassLine, value, onProp)
+                }
+
+                // REQ 12: fulfills requirement 12
+                // regular child class
+                else {
+                    let childClassLine = classLine + ' '
+                    // treat component names as CSS custom classes
+                    if (this._isComponentName(prop)) {
+                        childClassLine += '.'
+                    }
+                    childClassLine += prop
+                    this.parseStyle(childClassLine, value, onProp)
+                }
+            }
+
+            // REQ 9: fulfills requirement 9
+            else if (this._isDynamicProp(prop, value)) {
+                this._on(onProp, "dynamic", classLine, prop, value)
+            }
+            // REQ 8: fulfills requirement 8
+            // must be a static property!
+            else {
+                this._on(onProp, "static", classLine, prop, value)
+            }
+        }
+    }
+
+    parseKeyFrames(keyTimes, onProp) {
+        for (const keyProp in keyTimes) {
+            const timeProps = keyTimes[keyProp]
+
+            // adds '%' for ints
+            let keyTime = keyProp
+            const asInt = parseInt(keyTime)
+            if (asInt || asInt === 0) { // excludes NaN
+                keyTime += '%'
+            }
+
+            for (const prop in timeProps) {
+                const value = timeProps[prop]
+                
+                if (this._isDynamicProp(prop, value)) {
+                    this._on(onProp, "dynamic", keyTime, prop, value)
+                }
+                else {
+                    this._on(onProp, "static", keyTime, prop, value)
+                }
+            }
+        }
+        // TODO
+    }
+
+    // returns if when() was used
+    _isWhenProp(prop, value) {
+        return prop.slice(0, whenKey.length) === whenKey
+    }
+
+    // returns if pair defines a CSS child class
+    _isChildProp(prop, value) {
+        return typeof value === "object"
+    }
+
+    // returns if pair defines keyframes for animating
+    _isKeyframesProp(prop, value) {
+        return prop[0] === '@'
+    }
+
+    // returns if an absolute CSS rule was defined
+    _isAbsoluteProp(prop, value) {
+        return prop[0] === '='
+    }
+
+    // returns if a dynamic property was defined
+    _isDynamicProp(prop, value) {
+        return typeof value === "function"
+    }
+
+    // returns if "str" represents a component name (according to JSX specifications)
+    _isComponentName(str) {
+        const code = str.charCodeAt(0);
+        return code >= 65 && code <= 90 // range of capital letters
+    }
+
+    // just a wrapper that calls the function if it exists
+    _on(onProp, condition, classLine, prop, value) {
+        const callback = onProp[condition]
+        if (typeof callback === "function") {
+            callback(classLine, prop, value)
+        }
     }
 }
 
