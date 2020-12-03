@@ -14,14 +14,13 @@ accomplishes these tasks under the following requirements:
         7. Manages adding/modifying style elements to/in previous HTML structures
     makeStyle() Syntax:
         8. Static props have string values
-            - camelCase turns to dash-case
         9. Dynamic props have function values
-            - camelCase turns to dash-case
-        10. Absolute props start with '='
-        11. [when('...')] generates subclass
-        12. Component name or HTML element name creates child class
+        10. Props defined in camelCase turn to dash-case
+        11. Absolute props start with '='
+        12. [when('...')] generates subclass
+        13. Component name or HTML element name creates child class
             - '.' is auto-appended for Component names ONLY!
-        13. '@keyframes ...' defines animation frames
+        14. '@keyframes ...' defines animation frames
             - Numerical values automatically converted to percentages
 */
 
@@ -143,7 +142,7 @@ const parser = new class {
         for (const prop in makeResult) {
             const value = makeResult[prop]
 
-            // REQ 11: fulfills requirement 11
+            // REQ 12: fulfills requirement 12
             if (this._isWhenProp(prop, value)) {
                 const origProp = prop.slice(whenKey.length)
                 let subClassLine = classLine
@@ -158,18 +157,18 @@ const parser = new class {
             }
 
             else if (this._isChildProp(prop, value)) {
-                // REQ 13: fulfills requirement 13
+                // REQ 14: fulfills requirement 14
                 if (this._isKeyframesProp(prop, value)) {
                     this._on(onProp, "keyframes", classLine, prop, value)
                 }
 
-                // REQ 10: fulfills requirement 10
+                // REQ 11: fulfills requirement 11
                 else if (this._isAbsoluteProp(prop, value)) {
                     const absClassLine = prop.slice(1)
                     this.parseStyle(absClassLine, value, onProp)
                 }
 
-                // REQ 12: fulfills requirement 12
+                // REQ 13: fulfills requirement 13
                 // regular child class
                 else {
                     let childClassLine = classLine + ' '
@@ -219,6 +218,22 @@ const parser = new class {
         // TODO
     }
 
+    _toCSSProp(name) {
+        let newName = ""
+        for (let i = 0; i < name.length; i++) {
+            const char = name[i]
+            // range of capital letters
+            const code = char.charCodeAt(0)
+            if (code >= 65 && code <= 90) {
+                newName += '-' + char.toLowerCase()
+            }
+            else {
+                newName += char
+            }
+        }
+        return newName
+    }
+
     // returns if when() was used
     _isWhenProp(prop, value) {
         return prop.slice(0, whenKey.length) === whenKey
@@ -254,7 +269,9 @@ const parser = new class {
     _on(onProp, condition, classLine, prop, value) {
         const callback = onProp[condition]
         if (typeof callback === "function") {
-            callback(classLine, prop, value)
+            // REQ 10: fulfills requirement 10
+            const cssValidProp = this._toCSSProp(prop)
+            callback(classLine, cssValidProp, value)
         }
     }
 }
