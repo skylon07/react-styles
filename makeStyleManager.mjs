@@ -34,19 +34,25 @@ class StyleManager {
         return this.__knownStyles
     }
 
-    static _rememberStyle(fullRule, makeResult) {
-        // NOTE: treat this as an immutable object
-        const newMemory = { makeResult, staticStyle: null, dynamicStyle: null }
-        this._knownStyles[fullRule] = newMemory
-        return newMemory
+    static _rememberStaticSheet(fullRule, styleElement) {
+        const memory = this._knownStyles[fullRule] = this._knownStyles[fullRule] || {}
+        memory.static = styleElement
     }
-    static _setStaticSheetFor(fullRule, styleElement) {
-        const memory = this._knownStyles[fullRule]
-        memory.staticStyle = styleElement
+    static _rememberDynamicSheet(fullRule, styleElement) {
+        const memory = this._knownStyles[fullRule] = this._knownStyles[fullRule] || {}
+        memory.dynamic = styleElement
     }
-    static _setDynamicSheetFor(fullRule, styleElement) {
-        const memory = this._knownStyles[fullRule]
-        memory.dynamicStyle = styleElement
+
+    // keeps track of which components have completed their first init
+    static get _initializedComponents() {
+        if (!this.__initializeComponents) {
+            this.__initializeComponents = {}
+        }
+        return this.__initializeComponents
+    }
+    // NOTE: "static" means no dynamic props; "dynamic" means opposite
+    static _initializeComponent(component, type = "static") {
+        this._initializedComponents[component] = type
     }
 
     // NOTE: as a memory optimization, this manager controls if it needs to create a static/dynamic sheet
@@ -58,12 +64,12 @@ class StyleManager {
         // binds create funcs to our associated "memory"
         this._createStaticSheet = (fullRule) => {
             const style = createStaticSheet()
-            StyleManager._setStaticSheetFor(fullRule, style)
+            StyleManager._rememberStaticSheet(fullRule, style)
             return style
         }
         this._createDynamicSheet = (fullRule) => {
             const style = createDynamicSheet()
-            StyleManager._setDynamicSheetFor(fullRule, style)
+            StyleManager._rememberDynamicSheet(fullRule, style)
             return style
         }
 
@@ -79,14 +85,13 @@ class StyleManager {
         const makeResult = this._makeStyle(when)
 
         // creates new style elements for first init
-        const memory = this._getMemory(this._baseRule)
-        if (!memory) {
+        if (!this._styleInitializedBefore()) {
             // remembers style; prevents future managers from creating elements
             this._firstInitStyle(makeResult)
         }
         // ties in dynamic updater when necessary (but shouldnt update any style elements)
         else {
-            this._laterInitStyle(makeResult, memory)
+            this._laterInitStyle(makeResult)
         }
     }
 
@@ -94,45 +99,41 @@ class StyleManager {
     updateDynamicStyles(componentInstance) {
         for (const ruleLine in this._dynamicRules) {
             const ruleSet = this._dynamicRules[ruleLine]
-            const memory = this._getMemory(ruleLine)
-            const styleSheet = memory.dynamicStyle
+            const styleSheet = this._getMemorizedSheets(ruleLine).dynamic
 
             this._insertRulesToSheet(ruleLine, ruleSet, styleSheet, componentInstance)
         }
     }
 
-    _getMemory(fullRule) {
+    _getMemorizedSheets(fullRule) {
         return StyleManager._knownStyles[fullRule]
+    }
+
+    _styleInitializedBefore() {
+        return StyleManager._initializedComponents[this._baseRule]
     }
 
     // NOTE: new style elements should ONLY be called in the function below
     _firstInitStyle(makeResult) {
-        // remember the result for future component mounts
-        StyleManager._rememberStyle(this._baseRule, makeResult)
-
         // set up some accumulators for each CSS rule line
         // NOTE: these nested objects are structured as follows: rules.classLine.prop = value
         const staticRules = {}
-        const dynamicRules = {}
+        this._dynamicRules = {}
 
         // set up instructions on what to do for static/dynamic props
         // (which is collapsing it down to one CSS-like heirarchy)
         const onProp = {
             static: (classLine, prop, value) => {
-                let ruleProps = staticRules[classLine]
-                if (!ruleProps) {
-                    ruleProps = staticRules[classLine] = {}
-                }
+                const ruleProps = staticRules[classLine] = staticRules[classLine] || {}
                 ruleProps[prop] = value
             },
             dynamic: (classLine, prop, value) => {
-                let ruleProps = dynamicRules[classLine]
-                if (!ruleProps) {
-                    ruleProps = dynamicRules[classLine] = {}
-                }
+                const ruleProps = this._dynamicRules[classLine] = this._dynamicRules[classLine] || {}
                 ruleProps[prop] = value
             },
-            // TODO: keyframes?
+            keyframes: (classLine, prop, value) => {
+                this._initKeyFrames(prop, value, true)
+            },
         }
 
         // begin parsing
@@ -144,53 +145,119 @@ class StyleManager {
         for (const cssRule in staticRules) {
             const ruleDef = staticRules[cssRule]
             const styleSheet = this._createStaticSheet(cssRule)
-            this._insertRulesToSheet(cssRule, ruleDef, styleSheet, null) // no component instance needed for static elements (no functions)
+            this._insertRulesToSheet(cssRule, ruleDef, styleSheet)
         }
 
         // do not insert to dynamic stylesheet (that is what
         // updateDynamicStyles() does); only create and remember
-        for (const cssRule in dynamicRules) {
+        let anyDynamic = false
+        for (const cssRule in this._dynamicRules) {
+            anyDynamic = true
             this._createDynamicSheet(cssRule)
         }
-        this._dynamicRules = dynamicRules
+
+        // remember the result for future component mounts
+        const type = anyDynamic ? "dynamic" : "static"
+        StyleManager._initializeComponent(this._baseRule, type)
     }
-    _laterInitStyle(makeResult, memory) {
-        if (!memory.dynamicStyle) {
+    _laterInitStyle(makeResult) {
+        if (!this._styleInitializedBefore() !== "dynamic") {
             return // no dynamic properties to process (because firstInit didnt see any)
         }
 
         // acumulate dynamic rules only
-        const dynamicRules = {}
+        this._dynamicRules = {}
         const onProp = {
             dynamic: (classLine, prop, value) => {
-                let ruleProps = dynamicRules[classLine] = dynamicRules
-                if (!ruleProps) {
-                    ruleProps = dynamicRules[classLine] = {}
-                }
+                let ruleProps = this._dynamicRules[classLine] = this._dynamicRules[classLine] || {}
                 ruleProps[prop] = value
             },
-            // TODO: keyframes?
+            keyframes: (classLine, prop, value) => {
+                this._initKeyFrames(prop, value, false)
+            },
         }
 
         // begin parsing
         const initRule = this._baseRule
         parser.parseStyle(initRule, makeResult, onProp)
-
-        // remember dynamic rules
-        this._dynamicRules = dynamicRules
     }
 
-    // NOTE: this can process both static and dynamic rules since the logic
-    // after getting the value is the same
-    _insertRulesToSheet(ruleLine, ruleSet, styleElement, componentInstance) {
+    // its a mini-version of the whole init function!
+    _initKeyFrames(keyFramesRule, keyFramesTimes, isFirstInit) {
+        // all or nothing; either treat this definition like
+        // a static prop, or update it all if any prop is dynamic
+        let anyDynamic = false
+        const processedKeyTimeRules = {}
+        const isDynamic = Symbol()
+        const onProp = {
+            static: (keyTime, prop, value) => {
+                const ruleProps = processedKeyTimeRules[keyTime] = processedKeyTimeRules[keyTime] || {}
+                ruleProps[prop] = value
+            },
+            dynamic: (keyTime, prop, value) => {
+                const ruleProps = processedKeyTimeRules[keyTime] = processedKeyTimeRules[keyTime] || {}
+                ruleProps[prop] = value
+
+                anyDynamic = true
+                ruleProps[isDynamic] = true
+            },
+        }
+
+        parser.parseKeyFrames(keyFramesTimes, onProp)
+
+        if (anyDynamic) {
+            // tie into dynamic props
+            this._dynamicRules[keyFramesRule] = processedKeyTimeRules
+        }
+        // should create style elements
+        if (isFirstInit) {
+            if (anyDynamic) {
+                this._createDynamicSheet(keyFramesRule)
+            }
+            else {
+                const styleSheet = this._createStaticSheet(keyFramesRule)
+                this._insertRulesToSheet(keyFramesRule, processedKeyTimeRules, styleSheet)
+            }
+        }
+    }
+
+    // NOTE: this can process static, dynamic, and animation rules
+    // since the logic after getting the value is mostly the same
+    // NOTE: if processing no dynamic elements, a component instance is not needed
+    _insertRulesToSheet(ruleLine, ruleSet, styleElement, componentInstance = null) {
         // parse all rules into a single string
         let htmlStr = ruleLine + '{\n'
         for (const prop in ruleSet) {
             let value = ruleSet[prop]
+            // get value from dynamic properties
             if (typeof value === "function") {
+                if (!componentInstance) {
+                    throw new Error("(Internal React Styles Error) Dynamic property found with undefined component instance")
+                }
                 value = value(componentInstance)
             }
-            htmlStr += prop + ':' + value + ';\n'
+
+            // go another level for keyframes
+            if (typeof value === "object") {
+                const keyTime = prop
+                const keyTimeRules = value
+                htmlStr += keyTime + '{\n'
+                for (const prop in keyTimeRules) {
+                    let value = keyTimeRules[prop]
+                    if (typeof value === "function") {
+                        if (!componentInstance) {
+                            throw new Error("(Internal React Styles Error) Dynamic property found with undefined component instance")
+                        }
+                        value = value(componentInstance)
+                    }
+                    htmlStr += prop + ':' + value + ';\n'
+                }
+                htmlStr += '}\n'
+            }
+            // handle as static/dynamic prop
+            else {
+                htmlStr += prop + ':' + value + ';\n'
+            }
         }
         htmlStr += '}\n'
 
@@ -340,7 +407,8 @@ const parser = new class {
         const callback = onProp[condition]
         if (typeof callback === "function") {
             // REQ 9: fulfills requirement 9
-            const cssValidProp = this._toCSSProp(prop)
+            // NOTE: DO NOT apply cap-to-dash rule for animation names
+            const cssValidProp = (condition === "keyframes")? prop : this._toCSSProp(prop)
             callback(classLine, cssValidProp, value)
         }
     }
