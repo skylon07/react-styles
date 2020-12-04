@@ -22,7 +22,7 @@ function disableAutoClassNaming() {
 function disableHiddenProps() {
     hiddenPropEnabledGlobally = false
 }
-function enableHiddenProp() {
+function enableHiddenProps() {
     hiddenPropEnabledGlobally = true
 }
 
@@ -342,4 +342,8 @@ function _getChildJSXWithClass(className, jsxElementOrArray) {
 export default {
     Component: MyComponentFrom(React.Component),
     PureComponent: MyComponentFrom(React.PureComponent),
+    HiddenPropDisabledError,
+    
+    disableAutoClassNaming, disableHiddenProps, enableHiddenProp: enableHiddenProps,
+    useAsyncSetState, getUnnamedComponentConstructor, rerunAnimationOn,
 }
