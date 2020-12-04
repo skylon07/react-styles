@@ -8,11 +8,11 @@ class MockComponent {
 
     componentDidMount() {
         this.manager.initStyle()
-        this.manager.updateDynamicStyles()
+        this.manager.updateDynamicStyles(this)
     }
 
     componentDidUpdate() {
-        this.manager.updateDynamicStyles()
+        this.manager.updateDynamicStyles(this)
     }
 
     makeStyle(when) {
@@ -30,12 +30,16 @@ class FirstTest extends MockComponent {
 
             '@keyframes FirstTest-Animation': {
                 from: {
-                    opacity: 0,
+                    opacity: () => numUpdates + 5,
                 },
 
                 60: {
                     opacity: 1,
-                }
+                },
+
+                to: {
+                    size: () => numUpdates,
+                },
             }
         }
     }
@@ -43,9 +47,11 @@ class FirstTest extends MockComponent {
 
 const test = new FirstTest()
 test.componentDidMount()
-console.log('STATIC:', test.manager._getMemory(test.manager._baseRule).staticStyle.innerHTML)
-console.log('DYNAMIC (first):', test.manager._getMemory(test.manager._baseRule).dynamicStyle.innerHTML)
+console.log('STATIC:\n', test.manager._getMemorizedSheets(test.manager._baseRule).static.innerHTML)
+console.log('DYNAMIC (first):\n', test.manager._getMemorizedSheets(test.manager._baseRule).dynamic.innerHTML)
+console.log('KEYFRAMES (first):\n', test.manager._getMemorizedSheets('@keyframes FirstTest-Animation').dynamic.innerHTML)
 test.componentDidUpdate()
 test.componentDidUpdate()
-console.log('DYNAMIC (second):', test.manager._getMemory(test.manager._baseRule).dynamicStyle.innerHTML)
+console.log('DYNAMIC (second):\n', test.manager._getMemorizedSheets(test.manager._baseRule).dynamic.innerHTML)
+console.log('KEYFRAMES (second):\n', test.manager._getMemorizedSheets('@keyframes FirstTest-Animation').dynamic.innerHTML)
 
