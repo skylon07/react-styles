@@ -22,9 +22,11 @@ class MockComponent {
 
 class FirstTest extends MockComponent {
     makeStyle(when) {
+        let numUpdates = 0
         return {
             color: "white",
             backgroundColor: "red",
+            size: () => numUpdates++,
 
             '@keyframes FirstTest-Animation': {
                 from: {
@@ -41,4 +43,9 @@ class FirstTest extends MockComponent {
 
 const test = new FirstTest()
 test.componentDidMount()
-console.log(test.manager._getMemory(test.manager._baseRule).staticStyle.innerHTML)
+console.log('STATIC:', test.manager._getMemory(test.manager._baseRule).staticStyle.innerHTML)
+console.log('DYNAMIC (first):', test.manager._getMemory(test.manager._baseRule).dynamicStyle.innerHTML)
+test.componentDidUpdate()
+test.componentDidUpdate()
+console.log('DYNAMIC (second):', test.manager._getMemory(test.manager._baseRule).dynamicStyle.innerHTML)
+

@@ -194,7 +194,6 @@ class StyleManager {
         }
         htmlStr += '}\n'
 
-
         // set style element with string
         styleElement.innerHTML = htmlStr
     }
