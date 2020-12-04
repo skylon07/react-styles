@@ -1,4 +1,4 @@
-import makeManager from './makeStyleManager.mjs'
+import makeManager from './makeStyleProcessor.mjs'
 
 class MockComponent {
     constructor() {

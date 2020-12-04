@@ -1,7 +1,7 @@
 import React from 'react'
 
 import unnamedComponentHandler from './unnamedComponents.mjs'
-import makeStyleManagerFactory from './makeStyleManager.mjs'
+import makeStyleManagerFactory from './makeStyleProcessor.mjs'
 
 // just an alias that allows auto-naming of an error...
 class CustomError extends Error {
