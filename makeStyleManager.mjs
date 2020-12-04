@@ -27,7 +27,6 @@ const whenKey = 'when='
 class StyleManager {
     // REQ 6: fulfills requirement 6
     // NOTE: this is a dictionary of all known CSS rule sets for all components and themes
-    // (since each component/theme should only have one set of sheets devoted to it)
     static get _knownStyles() {
         if (!this.__knownStyles) {
             this.__knownStyles = {}
@@ -35,18 +34,18 @@ class StyleManager {
         return this.__knownStyles
     }
 
-    static _rememberStyle(baseRule, makeResult) {
+    static _rememberStyle(fullRule, makeResult) {
         // NOTE: treat this as an immutable object
         const newMemory = { makeResult, staticStyle: null, dynamicStyle: null }
-        this._knownStyles[baseRule] = newMemory
+        this._knownStyles[fullRule] = newMemory
         return newMemory
     }
-    static _setStaticSheetFor(baseRule, styleElement) {
-        const memory = this._knownStyles[baseRule]
+    static _setStaticSheetFor(fullRule, styleElement) {
+        const memory = this._knownStyles[fullRule]
         memory.staticStyle = styleElement
     }
-    static _setDynamicSheetFor(baseRule, styleElement) {
-        const memory = this._knownStyles[baseRule]
+    static _setDynamicSheetFor(fullRule, styleElement) {
+        const memory = this._knownStyles[fullRule]
         memory.dynamicStyle = styleElement
     }
 
@@ -57,18 +56,18 @@ class StyleManager {
         this._makeStyle = makeStyle
 
         // binds create funcs to our associated "memory"
-        this._createStaticSheet = () => {
+        this._createStaticSheet = (fullRule) => {
             const style = createStaticSheet()
-            StyleManager._setStaticSheetFor(this._baseRule, style)
+            StyleManager._setStaticSheetFor(fullRule, style)
             return style
         }
-        this._createDynamicSheet = () => {
+        this._createDynamicSheet = (fullRule) => {
             const style = createDynamicSheet()
-            StyleManager._setDynamicSheetFor(this._baseRule, style)
+            StyleManager._setDynamicSheetFor(fullRule, style)
             return style
         }
 
-        this._dynamicRules = null // will have all dynamic CSS rules after initStyle() is run (if any)
+        this._dynamicRules = [] // will have all dynamic CSS rules after initStyle() is run (if any)
     }
 
 
@@ -116,6 +115,7 @@ class StyleManager {
         const dynamicRules = {}
 
         // set up instructions on what to do for static/dynamic props
+        // (which is collapsing it down to one CSS-like heirarchy)
         const onProp = {
             static: (classLine, prop, value) => {
                 let ruleProps = staticRules[classLine]
@@ -131,34 +131,26 @@ class StyleManager {
                 }
                 ruleProps[prop] = value
             },
+            // TODO: keyframes?
         }
 
         // begin parsing
         const initRule = this._baseRule
         parser.parseStyle(initRule, makeResult, onProp)
 
-        // after accumulating, create ONLY necessary style elements
+        // after accumulating, create necessary style elements
         // insert to static stylesheet
-        let anyStaticRules = false
-        for (let _ in staticRules) {
-            anyStaticRules = true
-            break
-        }
-        if (anyStaticRules) {
-            const styleSheet = this._createStaticSheet()
-            // component ref not needed for static properties; no functions
-            this._insertRulesToSheet(null, staticRules, styleSheet)
+        for (const cssRule in staticRules) {
+            const ruleDef = staticRules[cssRule]
+            const styleSheet = this._createStaticSheet(cssRule)
+            this._insertRulesToSheet(ruleDef, styleSheet, null) // no component instance needed for static elements (no functions)
         }
 
-        // do not insert to dynamic stylesheet (that is what updateDynamicStyles() does)
-        let anyDynamicRules = false
-        for (let _ in dynamicRules) {
-            anyDynamicRules = true
-            break
-        }
-        if (anyDynamicRules) {
-            this._createDynamicSheet()
-            this._dynamicRules = dynamicRules
+        // do not insert to dynamic stylesheet (that is what
+        // updateDynamicStyles() does); only create and remember
+        for (const cssRule in dynamicRules) {
+            this._createDynamicSheet(cssRule)
+            this._dynamicRules.push(cssRule)
         }
     }
     _laterInitStyle(makeResult, memory) {
@@ -176,6 +168,7 @@ class StyleManager {
                 }
                 ruleProps[prop] = value
             },
+            // TODO: keyframes?
         }
 
         // begin parsing
@@ -183,26 +176,25 @@ class StyleManager {
         parser.parseStyle(initRule, makeResult, onProp)
 
         // remember dynamic rules
-        this._dynamicRules = dynamicRules
+        for (const cssRule in dynamicRules) {
+            this._dynamicRules.push(cssRule)
+        }
     }
 
     // NOTE: this can process both static and dynamic rules since the logic
     // after getting the value is the same
-    _insertRulesToSheet(componentInstance, ruleSet, styleElement) {
+    _insertRulesToSheet(ruleLine, ruleSet, styleElement, componentInstance) {
         // parse all rules into a single string
-        let htmlStr = ''
-        for (const ruleLine in ruleSet) {
-            htmlStr += ruleLine + '{\n'
-            const props = ruleSet[ruleLine]
-            for (const prop in props) {
-                let value = props[prop]
-                if (typeof value === "function") {
-                    value = value(componentInstance)
-                }
-                htmlStr += prop + ':' + value + ';\n'
+        let htmlStr = ruleLine + '{\n'
+        for (const prop in ruleSet) {
+            let value = ruleSet[prop]
+            if (typeof value === "function") {
+                value = value(componentInstance)
             }
-            htmlStr += '}\n'
+            htmlStr += prop + ':' + value + ';\n'
         }
+        htmlStr += '}\n'
+
 
         // set style element with string
         styleElement.innerHTML = htmlStr
