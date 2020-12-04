@@ -41,4 +41,4 @@ class FirstTest extends MockComponent {
 
 const test = new FirstTest()
 test.componentDidMount()
-console.log(test.manager._getMemory().staticStyle.innerHTML)
+console.log(test.manager._getMemory(test.manager._baseRule).staticStyle.innerHTML)

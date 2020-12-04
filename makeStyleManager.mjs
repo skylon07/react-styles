@@ -67,7 +67,7 @@ class StyleManager {
             return style
         }
 
-        this._dynamicRules = [] // will have all dynamic CSS rules after initStyle() is run (if any)
+        this._dynamicRules = null // will have all dynamic CSS props after initStyle() is run (if any)
     }
 
 
@@ -79,7 +79,7 @@ class StyleManager {
         const makeResult = this._makeStyle(when)
 
         // creates new style elements for first init
-        const memory = this._getMemory()
+        const memory = this._getMemory(this._baseRule)
         if (!memory) {
             // remembers style; prevents future managers from creating elements
             this._firstInitStyle(makeResult)
@@ -92,16 +92,17 @@ class StyleManager {
 
     // REQ 5: fulfills requirement 5
     updateDynamicStyles(componentInstance) {
-        const memory = this._getMemory()
-        if (!memory.dynamicStyle) {
-            return // no dynamic properties to update
-        }
+        for (const ruleLine in this._dynamicRules) {
+            const ruleSet = this._dynamicRules[ruleLine]
+            const memory = this._getMemory(ruleLine)
+            const styleSheet = memory.dynamicStyle
 
-        this._insertRulesToSheet(componentInstance, this._dynamicRules, memory.dynamicStyle)
+            this._insertRulesToSheet(ruleLine, ruleSet, styleSheet, componentInstance)
+        }
     }
 
-    _getMemory() {
-        return StyleManager._knownStyles[this._baseRule]
+    _getMemory(fullRule) {
+        return StyleManager._knownStyles[fullRule]
     }
 
     // NOTE: new style elements should ONLY be called in the function below
@@ -143,15 +144,15 @@ class StyleManager {
         for (const cssRule in staticRules) {
             const ruleDef = staticRules[cssRule]
             const styleSheet = this._createStaticSheet(cssRule)
-            this._insertRulesToSheet(ruleDef, styleSheet, null) // no component instance needed for static elements (no functions)
+            this._insertRulesToSheet(cssRule, ruleDef, styleSheet, null) // no component instance needed for static elements (no functions)
         }
 
         // do not insert to dynamic stylesheet (that is what
         // updateDynamicStyles() does); only create and remember
         for (const cssRule in dynamicRules) {
             this._createDynamicSheet(cssRule)
-            this._dynamicRules.push(cssRule)
         }
+        this._dynamicRules = dynamicRules
     }
     _laterInitStyle(makeResult, memory) {
         if (!memory.dynamicStyle) {
@@ -162,7 +163,7 @@ class StyleManager {
         const dynamicRules = {}
         const onProp = {
             dynamic: (classLine, prop, value) => {
-                let ruleProps = dynamicRules[classLine]
+                let ruleProps = dynamicRules[classLine] = dynamicRules
                 if (!ruleProps) {
                     ruleProps = dynamicRules[classLine] = {}
                 }
@@ -176,9 +177,7 @@ class StyleManager {
         parser.parseStyle(initRule, makeResult, onProp)
 
         // remember dynamic rules
-        for (const cssRule in dynamicRules) {
-            this._dynamicRules.push(cssRule)
-        }
+        this._dynamicRules = dynamicRules
     }
 
     // NOTE: this can process both static and dynamic rules since the logic
