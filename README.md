@@ -50,7 +50,7 @@ Running `useAsyncSetState()` will also change the `forceUpdate()` function in a 
     
 
 ## makeStyle() Syntax
-This section explains the syntax of using `makeStyle()`. This function is called on the first render of the component. It returns a single object representing the style layout of a component. An example might look like this:
+This section explains the syntax of using `makeStyle()`. This function is called before the component mounts. It returns a single object representing the style layout of a component. An example might look like this:
 ```
 makeStyle(when) {
     // case: function body
@@ -69,8 +69,10 @@ makeStyle(when) {
         ChildComponent: {
             // ...
         },
-        button: {
-            // ...
+        div: {
+            h1: {
+                // ...
+            },
         },
         ">button": {
             // ...
