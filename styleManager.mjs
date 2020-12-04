@@ -1,5 +1,5 @@
 const whenKey = 'when='
-class StyleManager {
+export default class {
     // REQ 6: fulfills requirement 6
     // NOTE: this is a dictionary of all known CSS rule sets for all components and themes
     static get _knownStyles() {
