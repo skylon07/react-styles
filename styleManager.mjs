@@ -1,5 +1,5 @@
 const whenKey = 'when='
-export default class {
+class StyleManager {
     // REQ 6: fulfills requirement 6
     // NOTE: this is a dictionary of all known CSS rule sets for all components and themes
     static get _knownStyles() {
@@ -8,7 +8,7 @@ export default class {
         }
         return this.__knownStyles
     }
-
+    
     static _rememberStaticSheet(fullRule, styleElement) {
         const memory = this._knownStyles[fullRule] = this._knownStyles[fullRule] || {}
         memory.static = styleElement
@@ -17,7 +17,7 @@ export default class {
         const memory = this._knownStyles[fullRule] = this._knownStyles[fullRule] || {}
         memory.dynamic = styleElement
     }
-
+    
     // keeps track of which components have completed their first init
     static get _initializedComponents() {
         if (!this.__initializeComponents) {
@@ -388,3 +388,5 @@ const parser = new class {
         }
     }
 }
+
+export default StyleManager
