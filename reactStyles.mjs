@@ -339,9 +339,12 @@ function _getChildJSXWithClass(className, jsxElementOrArray) {
     return null // never found anything in children either...
 }
 
+// wraps and exports React components
+const Component = MyComponentFrom(React.Component)
+const PureComponent = MyComponentFrom(React.PureComponent)
+
 export default {
-    Component: MyComponentFrom(React.Component),
-    PureComponent: MyComponentFrom(React.PureComponent),
+    Component, PureComponent,
     HiddenPropDisabledError,
     
     disableAutoClassNaming, disableHiddenProps, enableHiddenProp: enableHiddenProps,
