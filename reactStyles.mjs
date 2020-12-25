@@ -89,12 +89,12 @@ function MyComponentFrom(ReactClass) {
                 originalComponentDidUpdate: this.componentDidUpdate,
                 originalSetState: this.setState,
                 originalForceUpdate: this.forceUpdate,
-
-                // makeStyle manager for this instance
-                styleManager: makeStyleManagerFactory.createComponentManager(this),
             }
-
+            
             _bindLifecycleWrappersFor(this)
+
+            // makeStyle manager for this instance
+            this[RSKey].styleManager = makeStyleManagerFactory.createComponentManager(this)
         }
 
         // returns a unique name that identifies the base for CSS classes
