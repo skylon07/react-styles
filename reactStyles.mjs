@@ -51,7 +51,7 @@ function rerunAnimationOn(htmlElement, classNames) {
 
 
 /* LIBRARY PRIVATE VARIABLES */
-let autoClassNamingEnabled = true
+let autoClassNamingEnabled = false // NOTE: this feature is not currently supported; check XXX tag in _bindRender()
 let hiddenPropEnabledGlobally = true
 
 // used to access React Styles properties in components (or JSX representations)
@@ -152,9 +152,13 @@ function _bindRender(component) {
 
             // define some secret properties...
             // NOTE: props must be used so the component instance can detect this
+            // XXX: this does not work in strict mode for react; auto class naming feature
+            // cannot work until this is resolved
+            /*
             fullResult.props[RSKey] = {
                 parentClassName: "", // used to chain className handling if render() returned a component
             }
+            */
 
             // disables hidden prop on structures that cant support it
             // NOTE: arrays do not have props.style attributes; this breaks hidden prop
@@ -174,6 +178,8 @@ function _bindRender(component) {
                 component[RSKey].hiddenPropEnabled = null // disables permanently
             }
 
+            // NOTE: auto class naming is disabled
+            /*
             const isElement = typeof fullResult.type === "string"
             const isComponent = typeof fullResult.type === "function"
             // apply className to elements if not given
@@ -200,6 +206,7 @@ function _bindRender(component) {
                     fullResult.props[RSKey].className += ' ' + parentClassName
                 }
             }
+            */
 
             _handleHiddenProp(component, fullResult)
             return fullResult

@@ -8,7 +8,6 @@ React Styles creates its own set of components that only add onto the original R
 - [Main Features](#main-features)
 	- [makeStyle()](#makeStyle)
 	- [Custom prop: hidden](#custom-prop-hidden)
-	- [Automatic className='...' handling](#automatic-classname-handling)
 	- [Async setState()](#async-setstate)
 - [makeStyle() Syntax](#makestyle-syntax)
 	- [Case: function body](#case-function-body)
@@ -35,16 +34,9 @@ You might know of some built-in props like `ref` and `key`, and this is just lik
 Under the hood, all it is doing is setting `display: none` in the coresponding JSX element's `style` property. I've found this shortcut very handy in many components, but you don't need to use it if you don't want to. If you want to completely disable it's default behavior (say, if you want to use `hidden` for something else), just run `this.disableHiddenProp()` in the component's constructor. Alternatively, you can disable it for all components with `ReactStyles.disableHiddenProps()`.
 
 
-### Automatic className='...' handling
-React Styles components automatically attach their own name to whatever element `render()` returns. What this means is if you render a regular `<div />`, the `className` prop will automatically be set to `className="ComponentName"`. This even works if a component immediately returns another component (so long as the chain of components all the way to the element are React Styles components!).
-
-A small caveat, which only applies if the result of `render()` represents an *element* (not a component). React Styles will only automatically set the `className` if the element in question has not already provided it. This allows more control (and less confusion) in case the component renders its own wrapper, or if `className` needs to be managed more intricately.
-
-If you would like to disable this feature, you can run `ReactStyles.disableAutoClassNaming()`, which will apply to any subsequent component renders.
-
 
 ### Async setState()
-React's `setState()` function is very common throughout components. However, one of the key things that bothered me is it is not asyncronous! If you like to use ES6 `async/await` syntax, then lucky for you React Styles provides a `setState()` patch which returns an awaitable `Promise`! All you need to do is run `ReactStyles.useAsyncSetState()` at the beginning of your program, and you are good to go! (You can still use the second `callback` argument, in case other code already depends on it).
+React's `setState()` function is very common throughout components. However, one of the key things that bothered me is it is not asyncronous! If you like to use ES6 `async/await` syntax, then lucky for you React Styles provides a `setState()` patch which returns an awaitable `Promise`! All you need to do is run `ReactStyles.useAsyncSetState()` at the beginning of your program, and you are good to go! (This feature is backward-compatible; You can still use the second `callback` argument, in case other code already depends on it).
 
 Running `useAsyncSetState()` will also change the `forceUpdate()` function in a like manner.
     
